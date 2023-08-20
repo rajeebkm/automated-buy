@@ -136,7 +136,7 @@ async function main() {
 
   await wbnb.connect(deployer).approve(panacke_testnet_router.address, 10000);
 
-  await panacke_testnet_router
+  const liquidity_tx = await panacke_testnet_router
     .connect(deployer)
     .addLiquidity(
       SpearMint_TokenA.address,
@@ -148,6 +148,10 @@ async function main() {
       deployer.address,
       Math.floor(Date.now() / 1000) + 60 * 10
     );
+  const receipt = await liquidity_tx.wait();
+//   console.log(receipt);
+//   console.log(receipt.logs);
+//   console.log(receipt.events[0].topics);
 
   const factory_abi_json = JSON.parse(
     fs.readFileSync("contracts_json/abis/factory_abi.json", "utf8")
@@ -170,6 +174,21 @@ async function main() {
   const pair_contract = new ethers.Contract(pair, pair_abi_json, provider);
   const lp_balance = await pair_contract.balanceOf(deployer.address);
   console.log("Lp balance: ", lp_balance.toString());
+
+  let filter = pair_contract.filters.Mint();
+  const events = await pair_contract.queryFilter(filter, -1);
+  const event = events[0];
+//   console.log("All Events: ", events);
+  console.log("Event: ", event);
+
+  pair_contract.on(filter, (sender, amount0, amount1, event) => {
+    console.log(`${event.event} event emited: Liquidity (tokenA: ${amount0} & tokenB: ${amount1}) added by ${sender}`);
+  });
+
+  await new Promise((res) => setTimeout(res, 5000));
+  process.exit(0);
+
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere
