@@ -13,7 +13,7 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   let provider: any;
   //   console.log("Hardhat Network:", hardhat.network);
-  console.log("Network Network Name:", hardhat.network.name);
+  console.log("Hardhat Network Name:", hardhat.network.name);
   if (
     hardhat.network.name === "localhost" ||
     hardhat.network.name === "hardhat"
@@ -129,16 +129,47 @@ async function main() {
     wbnb_balance_whale2.toString()
   );
 
-  // tokenA_abi_file_json = open('./contracts/abis/tokenA_USDT_abi.json')
-  // tokenA_abi = json.load(tokenA_abi_file_json)
+  await SpearMint_TokenA.connect(deployer).approve(
+    panacke_testnet_router.address,
+    10000
+  );
 
-  // tokenA = web3Provider.eth.contract(address=tokenA_address, abi=tokenA_abi)
+  await wbnb.connect(deployer).approve(panacke_testnet_router.address, 10000);
 
-  // tokenB_abi_file_json = open('./contracts/abis/tokenB_WBNB_abi.json')
-  // tokenB_abi = json.load(tokenB_abi_file_json)
+  await panacke_testnet_router
+    .connect(deployer)
+    .addLiquidity(
+      SpearMint_TokenA.address,
+      wbnb.address,
+      10000,
+      10000,
+      1,
+      1,
+      deployer.address,
+      Math.floor(Date.now() / 1000) + 60 * 10
+    );
 
-  // tokenA = web3Provider.eth.contract(address=tokenA_address, abi=tokenA_abi)
-  // tokenB = web3Provider.eth.contract(address=tokenB_address, abi=tokenB_abi)
+  const factory_abi_json = JSON.parse(
+    fs.readFileSync("contracts_json/abis/factory_abi.json", "utf8")
+  );
+
+  const factory_contract = new ethers.Contract(
+    factory,
+    factory_abi_json,
+    provider
+  );
+
+  const pair = await factory_contract.getPair(
+    SpearMint_TokenA.address,
+    wbnb.address
+  );
+  console.log("Pair address: ", pair);
+  const pair_abi_json = JSON.parse(
+    fs.readFileSync("contracts_json/abis/pair_abi.json", "utf8")
+  );
+  const pair_contract = new ethers.Contract(pair, pair_abi_json, provider);
+  const lp_balance = await pair_contract.balanceOf(deployer.address);
+  console.log("Lp balance: ", lp_balance.toString());
 }
 
 // We recommend this pattern to be able to use async/await everywhere
