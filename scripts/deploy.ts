@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 
-async function main() {
+export async function deploy() {
   const [deployer] = await ethers.getSigners();
 
   const SpearMint = await ethers.getContractFactory("SpearMint");
@@ -9,15 +9,14 @@ async function main() {
   await spearmint.deployed();
 
   console.log(`SpearMint deployed to ${spearmint.address}`);
-  console.log(
-    "tBNB balance: ",
-    await ethers.provider.getBalance(deployer.address)
-  );
+  return spearmint;
 }
 
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  deploy().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
