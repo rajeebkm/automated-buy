@@ -131,27 +131,26 @@ async function main() {
 
   await SpearMint_TokenA.connect(deployer).approve(
     panacke_testnet_router.address,
-    10000
+    ethers.utils.parseEther("100")
   );
 
-  await wbnb.connect(deployer).approve(panacke_testnet_router.address, 10000);
+  await wbnb
+    .connect(deployer)
+    .approve(panacke_testnet_router.address, ethers.utils.parseEther("50"));
 
   const liquidity_tx = await panacke_testnet_router
     .connect(deployer)
     .addLiquidity(
       SpearMint_TokenA.address,
       wbnb.address,
-      10000,
-      10000,
-      1,
-      1,
+      ethers.utils.parseEther("100"),
+      ethers.utils.parseEther("50"),
+      ethers.utils.parseEther("1"),
+      ethers.utils.parseEther("1"),
       deployer.address,
       Math.floor(Date.now() / 1000) + 60 * 10
     );
   const receipt = await liquidity_tx.wait();
-//   console.log(receipt);
-//   console.log(receipt.logs);
-//   console.log(receipt.events[0].topics);
 
   const factory_abi_json = JSON.parse(
     fs.readFileSync("contracts_json/abis/factory_abi.json", "utf8")
@@ -176,19 +175,57 @@ async function main() {
   console.log("Lp balance: ", lp_balance.toString());
 
   let filter = pair_contract.filters.Mint();
-  const events = await pair_contract.queryFilter(filter, -1);
+  const events = await pair_contract.queryFilter(filter, -10);
   const event = events[0];
-//   console.log("All Events: ", events);
+  //   console.log("All Events: ", events);
   console.log("Event: ", event);
 
-  pair_contract.on(filter, (sender, amount0, amount1, event) => {
-    console.log(`${event.event} event emited: Liquidity (tokenA: ${amount0} & tokenB: ${amount1}) added by ${sender}`);
+  pair_contract.on(filter, async (sender, amount0, amount1, event) => {
+    console.log(
+      `${event.event} event emited: Liquidity (tokenA: ${amount0} & tokenB: ${amount1}) added by ${sender}`
+    );
+
+    if (event.event === "Mint") {
+      console.log("Event: Mint");
+      const get_reserves = await pair_contract.getReserves();
+      console.log("Get Reserves: ", get_reserves);
+
+      // given some amount of an asset and pair reserves, returns an equivalent amount of the other asset
+      const quote = await panacke_testnet_router.quote(
+        ethers.utils.parseEther("0.001"),
+        get_reserves[0],
+        get_reserves[1]
+      );
+
+      console.log("Quote: ", quote);
+
+      const to_address = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
+
+      const before_buy = await SpearMint_TokenA.balanceOf(to_address);
+      console.log("before_buy SpearMint Balance: ", before_buy.toString());
+
+      const deployer_spearmint_balance = await SpearMint_TokenA.balanceOf(
+        deployer.address
+      );
+      console.log(
+        "deployer SpearMint Balance: ",
+        deployer_spearmint_balance.toString()
+      );
+
+      const transfer_tx = await SpearMint_TokenA.connect(deployer).transfer(
+        to_address,
+        quote
+      );
+
+      await transfer_tx.wait();
+
+      const after_buy = await SpearMint_TokenA.balanceOf(to_address);
+      console.log("after buy SpearMint Balance: ", after_buy.toString());
+    }
   });
 
   await new Promise((res) => setTimeout(res, 5000));
   process.exit(0);
-
-
 }
 
 // We recommend this pattern to be able to use async/await everywhere
